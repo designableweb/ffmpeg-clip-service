@@ -1,7 +1,6 @@
 import express from "express";
 import { pipeline } from "stream/promises";
-import { Readable } from "stream";
-import { createWriteStream, createReadStream } from "fs";
+import { createReadStream } from "fs";
 import { unlink } from "fs/promises";
 import { randomUUID } from "crypto";
 import { execFile } from "child_process";
@@ -25,22 +24,21 @@ app.post("/cut", async (req, res) => {
     return res.status(400).json({ error: "sourceUrl, start, and end are required" });
   }
 
+  const duration = Number(end) - Number(start);
+  if (!(duration > 0)) {
+    return res.status(400).json({ error: "end must be greater than start" });
+  }
+
   const id = randomUUID();
-  const inputPath = `/tmp/in-${id}.mp4`;
   const outputPath = `/tmp/out-${id}.mp4`;
 
   try {
-    const sourceRes = await fetch(sourceUrl);
-    if (!sourceRes.ok) {
-      throw new Error(`Failed to download source video: ${sourceRes.status}`);
-    }
-    await pipeline(Readable.fromWeb(sourceRes.body), createWriteStream(inputPath));
-
     await execFileAsync("ffmpeg", [
       "-y",
-      "-i", inputPath,
+      "-loglevel", "error",
       "-ss", String(start),
-      "-to", String(end),
+      "-i", sourceUrl,
+      "-t", String(duration),
       "-c:v", "libx264",
       "-c:a", "aac",
       "-movflags", "+faststart",
@@ -55,7 +53,6 @@ app.post("/cut", async (req, res) => {
       res.status(500).json({ error: err.message });
     }
   } finally {
-    unlink(inputPath).catch(() => {});
     unlink(outputPath).catch(() => {});
   }
 });
