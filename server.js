@@ -39,8 +39,13 @@ app.post("/cut", async (req, res) => {
       "-ss", String(start),
       "-i", sourceUrl,
       "-t", String(duration),
+      "-vf", "scale='min(1920,iw)':-2",
       "-c:v", "libx264",
+      "-b:v", "2500k",
+      "-maxrate", "3000k",
+      "-bufsize", "5000k",
       "-c:a", "aac",
+      "-b:a", "128k",
       "-movflags", "+faststart",
       outputPath,
     ]);
